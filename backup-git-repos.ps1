@@ -13,11 +13,61 @@ try {
         throw "The scan root is not a directory: $RootPath"
     }
 
-    $directories = @(Get-ChildItem -LiteralPath $resolvedRoot -Directory -Force -ErrorAction Stop |
-        Sort-Object -Property Name)
+    $skipDirectoryNames = @(
+        '.git',
+        '.venv',
+        'venv',
+        'node_modules',
+        '__pycache__',
+        '.tox',
+        '.mypy_cache',
+        '.pytest_cache',
+        'site-packages',
+        'dist',
+        'build',
+        'target',
+        '.next',
+        'coverage'
+    )
+    $repositories = [System.Collections.Generic.List[System.IO.DirectoryInfo]]::new()
+    $pendingDirectories = [System.Collections.Generic.Stack[System.IO.DirectoryInfo]]::new()
+    $visitedDirectories = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $skippedCount = 0
+
+    foreach ($directory in (Get-ChildItem -LiteralPath $resolvedRoot -Directory -Force -ErrorAction Stop)) {
+        if (($directory.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -eq 0) {
+            $pendingDirectories.Push($directory)
+        }
+    }
+
+    while ($pendingDirectories.Count -gt 0) {
+        $directory = $pendingDirectories.Pop()
+        if (-not $visitedDirectories.Add($directory.FullName)) {
+            continue
+        }
+
+        $gitMarker = Join-Path -Path $directory.FullName -ChildPath '.git'
+        if (Test-Path -LiteralPath $gitMarker) {
+            $repositories.Add($directory)
+        }
+        else {
+            $skippedCount++
+        }
+
+        foreach ($childDirectory in (Get-ChildItem -LiteralPath $directory.FullName -Directory -Force -ErrorAction Stop)) {
+            if (($skipDirectoryNames -contains $childDirectory.Name) -or
+                (($childDirectory.Attributes -band [System.IO.FileAttributes]::ReparsePoint) -ne 0)) {
+                continue
+            }
+
+            $pendingDirectories.Push($childDirectory)
+        }
+    }
+
+    $repositories = @($repositories | Sort-Object -Property FullName)
 }
 catch {
-    Write-Host "Unable to read scan root '$RootPath': $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "Unable to scan directories below '$RootPath': $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
@@ -30,7 +80,9 @@ function Invoke-GitCommand {
     $previousErrorActionPreference = $ErrorActionPreference
     try {
         $ErrorActionPreference = 'Continue'
-        $commandOutput = @(& git @Arguments 2>&1)
+        $safeDirectory = (Get-Location).ProviderPath.Replace('\', '/')
+        $gitArguments = @('-c', "safe.directory=$safeDirectory") + $Arguments
+        $commandOutput = @(& git @gitArguments 2>&1)
         $exitCode = $LASTEXITCODE
     }
     catch {
@@ -74,17 +126,10 @@ $noOriginCount = 0
 $sensitiveSkippedCount = 0
 $failedCount = 0
 
-Write-Host "Scanning immediate subdirectories of '$resolvedRoot'..." -ForegroundColor Cyan
+Write-Host "Scanning all descendant directories of '$resolvedRoot' (not the root itself)..." -ForegroundColor Cyan
 
-foreach ($directory in $directories) {
-    $folderName = $directory.Name
-    $gitDirectory = Join-Path -Path $directory.FullName -ChildPath '.git'
-
-    if (-not (Test-Path -LiteralPath $gitDirectory -PathType Container)) {
-        $skippedCount++
-        Write-Host "[$folderName] Skipped: no .git directory." -ForegroundColor DarkGray
-        continue
-    }
+foreach ($directory in $repositories) {
+    $folderName = $directory.FullName.Substring($resolvedRoot.Length).TrimStart([char]92)
 
     $repositoryCount++
     Write-Host "[$folderName] Processing repository..." -ForegroundColor Cyan
@@ -106,7 +151,7 @@ foreach ($directory in $directories) {
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
 
         $sensitivePaths = @($statusLines |
-            Where-Object { $_ -match '(?i)(^|[/\\])\.env(?:$|[./\\"])(?!example|sample|template|dist)' })
+            Where-Object { $_ -match '(?i)(?:^.{0,3}|[/\\])"?\.env(?:$|[./\\"])(?!example|sample|template|dist)' })
         if ($sensitivePaths.Count -gt 0) {
             $sensitiveSkippedCount++
             Write-Host "[$folderName] WARNING: possible environment/credential file changes detected; skipping commit and push." -ForegroundColor Yellow
