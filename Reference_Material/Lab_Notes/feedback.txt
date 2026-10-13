@@ -1,0 +1,279 @@
+General Comments:
+------------------
+
+1. 2305, 2318, 2321, 2323, 2327: Does not create directory when untarred. (-0.5)
+
+2. 2213, 2216, 2219, 2227, 2232, 2237, 2240, 2303, 2307, 2310, 2324:
+Did not submit code.
+
+3. A lot of you did not bother to convert the sequence number and the reserved
+fields to network byte order before sending on the network nor to the host 
+order on receiving. (-1)
+
+4. Another issue common to many is that you fix the string length to be 15.
+But, do not give any indication of this to the user. Using strncpy is fine
+in terms of ensuring you don't overflow your buffer but it means that only a
+part of the message may reach the server if the string is >= 15 characters.
+Do you people think you will like such a software? Assume that this length
+has to do with money transfer or your marks etc. Which gets truncated and
+added/subtracted in a wrong way. Using strcpy can lead to a nice segmentation
+fault given the right input.
+
+5. When no cmdline args are given or insufficient args are given, give 
+meaningful error message instead of something like "Not enough args given".
+It should be something like this: "Usage: ./server <ipaddress> <portno>".
+This tells your user what is expected and in what order. Otherwise, do you
+expect your user to inspect your code to understand what your code is expecting?
+
+6. From the main() function, it is always better to use exit() and not return.
+
+7. When there are common definitions/declarations in different source files
+such as your structure for the message, it is a good idea to include it in
+a .h file and include this .h file in the source files. If, tomorrow, you have
+to change this structure, e.g., you will need to change it in only one place.
+Any good programming will avoid repetition of the same code/definitions/
+declarations.
+
+8. When cmdline args are not given, simply printing a message saying not
+enough arguments are given is NOT a useful message. We call it a Microsoft
+message as it conveys no information. You should always provide a message
+such as : "Usage: ./server <ipaddress> <port>". This gives the user the
+information of what needs to be provided and in what order.
+
+9. Some of even those who checked the return status of most system calls,
+did not check return status of inet_aton and related calls. So, if I give an
+invalid IP addres such as 127.0.0.1100, your server claims to run though
+there will be no such server really running.
+
+10. You should not return from main() in server if an accept fails.
+A server can run after that to accept new connections from other clients.
+
+2221
+-----
+1. Did not take the IP address as the cmdline arg for the server.
+
+2231
+----- 
+1. Did not check for the return values of write and read system calls in
+client.
+2. Did not take the IP address as the cmdline arg for the server.
+3. Does not send random seq no. to the server. It is just sending back the
+value sent by server in the next message to the server. 
+Please read the specification carefully before starting to implement.
+4. Using INADDR_ANY in the server instead of the provided IP address.
+
+2234
+-----
+1. Did not check return values of many system calls.
+2. Did not check for return values of read and write. 
+3. Sends a message from client to server only once.
+
+2301
+-----
+1. Did not check return values of the system calls.
+2. Copying argv[3] into the msg data is done until end of string but what
+happens if strlen(argv[3]) > 14?
+3. You implemented a concurrent server that I did not ask. Shows it is quite
+easy to implement it, however.
+4. When client is called with no cmdline args, it segment faults. Ditto with
+the server. Your code is essentially assuming everything is fine with the
+world! It's absolutely not! Your program cannot crash under any circumstances
+to the extent possible if you are a good programmer.
+
+
+2302
+-----
+1. Give meaningful error messages. Saying not enough arguments does not convey
+any useful information to your user. It's like a Microsoft statement. Give
+the usage properly.
+2. Using INADDR_ANY in the server instead of the provided IP address.
+3. Does not check return values of system calls.
+4. I asked that the server should also accept IP address as a cmdline arg.
+5. When the client finishes and closes its connection, your check combines
+error as well as normal closing of the socket and prints the message:
+"Message from client not read/received
+: Success" which makes no sense.
+
+2304
+-----
+1. read() return value of 0 is not an error; indicates EOF. Do not combine
+it with <0.
+
+
+2305
+-----
+1. Writing a message from the client only once. I had asked for a few times.
+
+2306
+-----
+1. Asking user for an input to stop sending messages is a bad idea. I said
+a few times. This could be done without the input.
+2. You are using strcpy!
+3. You used sscanf with %hd but did not convert your port to the network
+byte order. This results in an error.
+
+2308
+-----
+1. It is really shocking to see you unnecessarily have two bad functions --
+write_all and read_all. All you have to do is give the pointer of the structure
+to write/read! Why are you writing one byte at a time?! I hope you understood
+how bad this is in the class on select().
+2. Even worse is to have the same functions in both server and client. If you
+indeed need such common functions, they should be defined in a different .c
+file and that .o file should be linked with your server and client programs.
+3. Please meet me.
+4. When I say seq number should be random, I mean it is random in all the
+messages, not just the first message. 
+
+2311
+-----
+Please meet me.
+
+2312
+-----
+Please meet me.
+
+2313
+-----
+1. Using strcpy -- will certainly result in segmentation fault at some point
+given a large enough string.
+2. Sending the data only once whereas the spec says you have to repeat it for
+a certain number of times.
+
+2314
+-----
+1. Using strcpy.
+2. Using INADDR_ANY in the server instead of the provided IP address.
+
+2315
+-----
+1. Code not written by you.
+
+2316
+-----
+1. I am glad you checked for the length of the string. But, it's better you
+exit instead of continuing. However, you have a meaningful message at least.
+2. Even though reserved field is set to 0, as of now, it is still good to
+convert it to network byte order before sending. That is the convention in
+networks.
+
+2317
+-----
+1. There is a mismatch between messages sent and received by the client.
+A typical off-by-one error.
+2. Using strcpy -- will result in a seg fault given a sufficiently long string.
+
+2318
+-----
+1. Why malloc message? As I said in the class, it's ridiculous to use it
+when you already have a stack frame to use.
+2. Using strcpy -- will result in a seg fault given a sufficiently long string.
+3. Allocating memory for messages used by the client. But, not freeing the
+memory. Also, please note that when you declare a variable in a block, its
+scope is only the block. Once you exit out of the block, it cannot be reached.
+So, you have memory leaks in your server which will leave your server with 
+no memory to run after enough clients connect to it. Extremely bad programming
+in a server.
+
+2320
+-----
+1. You should not be reading a fixed number of times in the server. You should
+read until the client sends EOF. When you are writing the server, you cannot
+assume anything from the client's side. You may not be the person who writes
+the client code at all.
+2. When no cmdline args are given, it seg faults in the server.
+3. What is the use of checking for an error in bind when you do not exit
+out of the server?
+
+2321
+-----
+1. Your cmdline argc checking is off-by-one. So, when I don't give the string
+in client, it still proceeds with a NULL argv pointer.
+2. What's the use of checking args when you don't exit? Both segment fault
+when no cmdline args are given.
+3. Using INADDR_ANY in the server instead of the provided IP address.
+4. 
+
+2322
+-----
+1. Using strcpy -- will seg fault when a sufficiently long argument is given.
+2. In your client, why have a while loop again for reading from the server?
+All you have to do is to check if it is <= 0 and if so, give the appropriate
+error. Having a while loop with a break is not such a readable code.
+
+2323
+-----
+1. Using strcpy -- Will result in a seg fault given a sufficiently long string.
+2. Do you want to continue in the client/server when there are read/write
+errors? E.g., you may get an error for write because the server has crashed.
+3. What's the use of checking accept() error when you continue to read from
+that client?
+
+2325
+-----
+1. Why do you do strncpy of only 15 when your data field is of size 200?
+2. No checks on read and write return values.
+
+2326
+-----
+1. You call srand() in your function and also in the main. Don't repeat.
+2. Should you not be checking for a return value of 0/EOF from read?
+Because you did not do this, after the client quits, the server proceeds to
+try to read from the socket and proceeds to write to the socket. It's getting
+a SIGPIPE and exiting. This is a really bad error.
+3. You asked me about conversion of seq no etc but never included it in your
+code. Why?
+4. Using strcpy -- seg fault at some length of the string given.
+
+2327
+-----
+1. Using INADDR_ANY in the server instead of the provided IP address.
+
+2328
+-----
+1. Do not use upper case only for variables. That's used for Macros.
+2. Why do you copy the argv[3] into some variable with another bad name 'a'
+and then again to the data part of the message. You could do it directly.
+3. Bad file name -- "a.h"!
+4. You still continue to use bad variable names. Also, you don't really need
+so many variables. One variable to check return value except for read is
+enough.
+5. Have blank lines between blocks of code. It makes it more readable. Please
+note I cannot emphasise enough about readability of the code.
+6. No error check on accept().
+
+2330
+-----
+1. Please meet me.
+
+2331
+-----
+1. What is the use of checking error if you proceed to further instructions?
+2. Not indented code! Very bad style of programming!
+3. Using strcpy. Agreed you declared it to be 256B but still, there may arise
+some situation where the string can be larger than this and then you will hit
+seg fault.
+4. Since you don't handle errors in read and write, you have your client and
+server crashing due to SIGPIPE.
+
+2334
+-----
+1. Using strcpy. Agreed you declared it to be 256B but still, there may arise
+2. Not handling read() return value of 0. You must. Supposing the server goes
+down before you read, read will return EOF. Handling this is useful. What's
+happening in your code is that write will end in SIGPIPE.
+3. No return value check on listen.
+some situation where the string can be larger than this and then you will hit
+seg fault.
+
+2335
+-----
+1. Code not written by you.
+
+2336
+-----
+Please meet me.
+
+2339
+-----
+Please meet me.

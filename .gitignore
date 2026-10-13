@@ -1,0 +1,7 @@
+*.zip
+*.exe
+*.class
+*.py[cod]
+__pycache__/
+.env*
+!.env.example

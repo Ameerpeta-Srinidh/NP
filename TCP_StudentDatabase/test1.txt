@@ -1,0 +1,30 @@
+# add student
+2, aa, 8, 0
+# add course
+2, 560, 39
+2, 450, 58
+2, 620, 76
+2, 470, 49
+2, 520, 78
+# add student
+3, ab, 6, 0
+# add course
+3, 560, 45
+3, 450, 50
+3, 620, 60
+# add student
+4, ac, 5, 0
+# add course
+4, 560, 39
+4, 450, 42
+# add student
+5, ad, 7, 0
+# add course
+5, 520, 81
+5, 420, 59
+# delete course
+2, 560
+# modify course
+2, 450, 88
+# modify student
+5, 8.9
